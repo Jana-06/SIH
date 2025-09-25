@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Farmer Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <style>
+    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:16px 0}
+    .kpi{background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    .kpi h3{margin:0 0 8px 0;font-size:16px;color:#0b5a6f}
+    .kpi .value{font-size:26px;font-weight:700}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+    .action-btn{background:#0b6ef5;color:#fff;border:none;border-radius:8px;padding:10px 14px;cursor:pointer}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+    .card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    .card h2{margin-top:0}
+    .img-wrap{width:100%;aspect-ratio:1/1;background:#fafafa;border:1px solid #eee;border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .img-wrap img{max-width:100%;height:auto;display:block}
+    .hint{color:#555;font-size:13px;margin-top:6px}
+  </style>
+</head>
+<body class="farmer-page">
+  <header class="header">
+    <div class="container">
+      <h1><i class="fa-solid fa-wheat-awn"></i> Farmer Dashboard</h1>
+    </div>
+  </header>
+
+  <main class="container">
+  <section class="card farmer-card" style="margin-top:12px; background:#f7fbff;border:1px solid #e3f0ff;">
+      <h2 style="margin-top:0">Farmer-first view</h2>
+      <p class="hint" style="margin:0 0 6px 0">Note: The Agricultural Monitoring Dashboard is built for researchers and agronomists. This page presents the same insights in simple, farmer-friendly language.</p>
+      <p class="hint" style="margin:0">Looking for the research view? <a href="/" style="text-decoration:underline;">Open the Research Dashboard</a>.</p>
+    </section>
+
+  <section class="card farmer-card" style="margin-top:12px;">
+      <h2 style="margin-top:0">Farm Proverb</h2>
+      <blockquote style="margin:0; font-size:15px; color:#333; border-left:4px solid #0b6ef5; padding-left:10px;">
+        “Bachat hi kamaai hai — sahi samay par sahi kadam se nuksaan kam hota hai.”
+      </blockquote>
+      <div class="hint">A small saving today reduces big losses tomorrow — helping Indian farmers protect income.</div>
+    </section>
+    <div class="instructions-panel">
+      <h2>Quick Guide</h2>
+      <ol>
+        <li>Click <strong>Run Analysis</strong> to process your field data.</li>
+        <li>Review the KPIs and maps below. Focus first on <em>Crop Health</em> and <em>Pest Risk</em>.</li>
+        <li>Use the suggested actions to plan irrigation, nutrition, or protection.</li>
+      </ol>
+      <div class="actions">
+        <button id="run-button" class="action-btn"><i class="fa-solid fa-play"></i> Run Analysis</button>
+        <span id="loader" class="loader" style="display:none"></span>
+      </div>
+    </div>
+
+    <section class="kpi-grid" id="kpi-grid">
+      <div class="kpi"><h3>Overall Crop Health</h3><div class="value" id="kpi-health">–</div><div class="hint" id="kpi-health-score"></div></div>
+      <div class="kpi"><h3>Pest Risk</h3><div class="value" id="kpi-pest">–</div><div class="hint" id="kpi-pest-score"></div></div>
+      <div class="kpi"><h3>Soil Moisture</h3><div class="value" id="kpi-moisture">–</div><div class="hint" id="kpi-moisture-hint"></div></div>
+      <div class="kpi"><h3>Recommended Action</h3><div class="value" id="kpi-action">–</div><div class="hint">See details below</div></div>
+    </section>
+
+  <section class="cards farmer-card" style="background:transparent; box-shadow:none; border:none; padding:0;">
+  <div class="card farmer-card">
+        <h2>Crop Health Map</h2>
+        <div class="img-wrap"><img id="img-health" alt="Crop Health Map" /></div>
+        <div class="hint">Green=Healthy, Yellow=Stressed, Red=Unhealthy</div>
+      </div>
+  <div class="card farmer-card">
+        <h2>NDVI Map</h2>
+        <div class="img-wrap"><img id="img-ndvi" alt="NDVI Map" /></div>
+        <div class="hint">Higher means more green biomass</div>
+      </div>
+  <div class="card farmer-card">
+        <h2>Soil Condition Map</h2>
+        <div class="img-wrap"><img id="img-soil" alt="Soil Condition Map" /></div>
+        <div class="hint">Dry areas may align with stressed crops</div>
+      </div>
+      <div class="card farmer-card">
+        <h2>Pest Risk Map</h2>
+        <div class="img-wrap"><img id="img-pest" alt="Pest Risk Map" /></div>
+        <div class="hint">Red = High risk, Yellow = Medium, Green = Low</div>
+      </div>
+    </section>
+
+  <section class="card farmer-card" style="margin-top:16px;">
+      <h2>Suggested Next Steps</h2>
+      <ul id="suggested-actions">
+        <li>Run analysis to see tailored recommendations.</li>
+      </ul>
+    </section>
+  </main>
+
+  <!-- Chatbot (farmer page) -->
+  <div class="chatbot-fab" id="chatbot-fab">
+    <i class="fa-solid fa-robot"></i>
+  </div>
+  <div class="chatbot-container" id="chatbot-container">
+    <div class="chatbot-header">
+      <h2>Farm Assistant</h2>
+      <div class="chatbot-actions">
+        <button id="toggle-tts" class="chatbot-icon-btn" title="Toggle voice"><i class="fa-solid fa-volume-high"></i></button>
+        <button id="close-chatbot" class="close-chatbot-btn" title="Close"><i class="fa-solid fa-times"></i></button>
+      </div>
+    </div>
+    <div id="chatbot-messages" class="chatbot-messages">
+      <div class="message bot-message">Namaste! I can explain the maps and give simple advice. Ask anything.</div>
+    </div>
+    <div class="chatbot-input">
+      <input type="text" id="user-input" placeholder="Ask in English or Hindi...">
+      <button id="send-button"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='farmer.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+# MATLAB / Octave
+*.asv
+*.m~
+*.mex*
+*.mat
+*.fig
+*.slprj/
+*.mdl.*
+*.slx.*
+
+# Project outputs
+results/**
+user_models*/**
+final_models/**
+test_models/**
+final_training_data/**
+test_training_data/**
+training_data/**
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.7z
+
