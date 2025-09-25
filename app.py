@@ -5,6 +5,7 @@ import os
 import re
 import io
 import random
+import math
 from datetime import datetime
 
 try:
@@ -157,30 +158,93 @@ def generate_demo_results(results_dir: str) -> str:
         # Helpers
         def save_colormap(name, seed=0):
             rnd = random.Random(seed)
-            # generate simple gradient with noise
-            data = bytearray()
+            img = Image.new('RGB', (w, h))
+            
+            # Create realistic field patterns based on map type
             for y in range(h):
                 for x in range(w):
-                    v = int(255 * (x / (w - 1)))
-                    v = int(0.7*v + 0.3*rnd.randint(0, 255))
-                    data.append(max(0, min(255, v)))
-            img = Image.frombytes('L', (w, h), bytes(data))
-            rgb = apply_jet_palette(img)
-            rgb.save(os.path.join(results_dir, f'{name}.png'))
+                    # Create field-like patterns with some randomness
+                    field_x = (x // 32) * 32 + 16  # Create field boundaries
+                    field_y = (y // 32) * 32 + 16
+                    
+                    # Base value with field variation
+                    base_val = 0.3 + 0.4 * (field_x + field_y) / (w + h)
+                    
+                    # Add crop row patterns
+                    if name in ['ndvi_map', 'gndvi_map', 'ndre_map']:
+                        # Vegetation indices - show crop rows
+                        row_pattern = 0.1 * abs(math.sin(y * 0.2)) if y % 8 < 4 else 0
+                        base_val += row_pattern
+                        # Healthy areas (green-yellow), stressed areas (red-orange)
+                        if base_val > 0.6:
+                            color = (int(50 + base_val * 100), int(150 + base_val * 105), 50)
+                        else:
+                            color = (int(150 + base_val * 105), int(100 + base_val * 100), 50)
+                            
+                    elif name == 'soil_condition_map':
+                        # Soil moisture - brown to blue gradient
+                        soil_noise = 0.1 * rnd.random()
+                        base_val += soil_noise
+                        color = (int(139 - base_val * 100), int(69 + base_val * 100), int(19 + base_val * 200))
+                        
+                    elif name in ['evi_map', 'savi_map']:
+                        # Enhanced vegetation - similar to NDVI but different scaling
+                        base_val = base_val * 0.8 + 0.1
+                        color = (int(34 + base_val * 150), int(139 + base_val * 116), int(34 + base_val * 50))
+                        
+                    else:  # pest_risk_score_map
+                        # Pest risk - cooler colors for low risk, warmer for high risk
+                        risk_val = base_val + 0.2 * rnd.random()
+                        if risk_val < 0.4:
+                            color = (50, int(100 + risk_val * 200), 200)  # Blue-green (low risk)
+                        elif risk_val < 0.7:
+                            color = (int(100 + risk_val * 155), int(150 + risk_val * 105), 100)  # Yellow (medium)
+                        else:
+                            color = (int(150 + risk_val * 105), int(50 + risk_val * 50), 50)  # Red (high risk)
+                    
+                    # Ensure valid RGB values
+                    color = (max(0, min(255, color[0])), max(0, min(255, color[1])), max(0, min(255, color[2])))
+                    img.putpixel((x, y), color)
+                    
+            img.save(os.path.join(results_dir, f'{name}.png'))
 
         def save_discrete_rgb(name):
-            # 1=low(G), 2=med(Y), 3=high(R)
             img = Image.new('RGB', (w, h))
+            rnd = random.Random(42)
+            
             for y in range(h):
                 for x in range(w):
-                    # Three vertical bands
-                    if x < w//3:
-                        color = (0, 200, 0)
-                    elif x < 2*w//3:
-                        color = (220, 220, 0)
-                    else:
-                        color = (220, 0, 0)
+                    # Create realistic field patches instead of simple bands
+                    patch_size = 40
+                    patch_x = (x // patch_size) * patch_size
+                    patch_y = (y // patch_size) * patch_size
+                    
+                    # Determine patch health/risk based on position with some randomness
+                    patch_val = ((patch_x + patch_y) % 120) / 120.0 + 0.1 * rnd.random()
+                    
+                    if name == 'crop_health_map':
+                        if patch_val < 0.33:
+                            color = (50, 200, 50)     # Healthy (green)
+                        elif patch_val < 0.66:
+                            color = (255, 255, 50)   # Stressed (yellow)  
+                        else:
+                            color = (220, 50, 50)    # Unhealthy (red)
+                    else:  # pest_risk_map
+                        if patch_val < 0.33:
+                            color = (100, 200, 100)  # Low risk (light green)
+                        elif patch_val < 0.66:
+                            color = (255, 200, 50)   # Medium risk (orange-yellow)
+                        else:
+                            color = (200, 50, 50)    # High risk (red)
+                    
+                    # Add some texture within patches
+                    texture = rnd.randint(-20, 20)
+                    color = (max(0, min(255, color[0] + texture)), 
+                           max(0, min(255, color[1] + texture)), 
+                           max(0, min(255, color[2] + texture)))
+                    
                     img.putpixel((x, y), color)
+            
             img.save(os.path.join(results_dir, f'{name}.png'))
 
         # Save maps
