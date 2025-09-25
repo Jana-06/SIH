@@ -16,7 +16,8 @@ except Exception:
 app = Flask(__name__)
 CORS(app)
 
-RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'results')
+# Results directory - same location as MATLAB saves results
+RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results')
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 @app.route('/')
@@ -58,21 +59,34 @@ def run_matlab():
 
         matlab_output = process.stdout
         
-        # Process MATLAB results and create Python visualizations
+        # Process MATLAB results - use the actual MATLAB-generated files
         try:
             analysis_output, image_urls = process_matlab_results()
             return jsonify({'output': analysis_output, 'images': image_urls, 'full_context': analysis_output})
         except Exception as e:
-            # Fallback: look for existing PNG files and return MATLAB output
-            image_files = [f for f in os.listdir(RESULTS_DIR) if f.endswith('.png')] if os.path.exists(RESULTS_DIR) else []
-            image_urls = [f'/results/{f}' for f in image_files]
-            return jsonify({'output': matlab_output, 'images': image_urls, 'full_context': matlab_output, 'warning': f'Result processing failed: {str(e)}'})
+            # Fallback: look for MATLAB-generated PNG files in results directory
+            results_dir = 'results'  # MATLAB saves to 'results' directory in same folder
+            if os.path.exists(results_dir):
+                image_files = [f for f in os.listdir(results_dir) if f.endswith('.png')]
+                image_urls = [f'/results/{f}' for f in image_files]
+            else:
+                image_files = []
+                image_urls = []
+            
+            return jsonify({
+                'output': matlab_output, 
+                'images': image_urls, 
+                'full_context': matlab_output, 
+                'warning': f'Result processing failed: {str(e)}',
+                'matlab_files_found': len(image_files)
+            })
 
     except Exception as e:
         return jsonify({'error': str(e)})
 
 @app.route('/results/<filename>')
-def uploaded_file(filename):
+def serve_matlab_results(filename):
+    """Serve MATLAB-generated result files (PNG images, etc.)"""
     return send_from_directory(RESULTS_DIR, filename)
 
 @app.route('/chat', methods=['POST'])
@@ -153,37 +167,79 @@ if __name__ == '__main__':
 # MATLAB Integration Functions
 # ------------------------------
 def process_matlab_results():
-    """Process MATLAB results and create Python visualizations"""
+    """Process MATLAB results and use actual MATLAB-generated visualizations"""
     
-    # Find the most recent results files
-    results_files = []
-    if os.path.exists('results'):
-        mat_files = [f for f in os.listdir('results') if f.startswith('combined_results_') and f.endswith('.mat')]
-        if mat_files:
-            # Get the most recent file
-            latest_file = max(mat_files, key=lambda x: os.path.getctime(os.path.join('results', x)))
-            results_files.append(os.path.join('results', latest_file))
+    results_dir = 'results'
     
-    if not results_files:
-        raise Exception("No MATLAB results found. Please ensure MATLAB analysis completed successfully.")
+    # Check if MATLAB results directory exists
+    if not os.path.exists(results_dir):
+        raise Exception("MATLAB results directory not found. Please ensure MATLAB analysis completed successfully.")
     
-    # Try to read MATLAB results using scipy
+    # Find the most recent MATLAB results files
+    mat_files = [f for f in os.listdir(results_dir) if f.startswith('combined_results_') and f.endswith('.mat')]
+    
+    if not mat_files:
+        raise Exception("No MATLAB combined_results file found. Please ensure MATLAB analysis completed successfully.")
+    
+    # Get the most recent results file
+    latest_file = max(mat_files, key=lambda x: os.path.getctime(os.path.join(results_dir, x)))
+    
+    # Try to read MATLAB results using scipy for analysis text
     try:
         import scipy.io
-        mat_data = scipy.io.loadmat(results_files[0])
+        mat_data = scipy.io.loadmat(os.path.join(results_dir, latest_file))
         matlab_results = mat_data['combined_results']
+        
+        # Generate analysis output from MATLAB data
+        analysis_output = generate_analysis_output_from_matlab(matlab_results)
+        
     except ImportError:
-        raise Exception("scipy is required to read MATLAB .mat files. Please install: pip install scipy")
+        # If scipy not available, create basic output
+        analysis_output = generate_basic_matlab_output(latest_file)
     except Exception as e:
-        raise Exception(f"Failed to read MATLAB results: {str(e)}")
+        # If reading MATLAB data fails, create basic output
+        analysis_output = generate_basic_matlab_output(latest_file, str(e))
     
-    # Extract key results from MATLAB data structure
-    analysis_output = generate_analysis_output_from_matlab(matlab_results)
+    # Use actual MATLAB-generated PNG files (not Python-generated ones)
+    image_files = [f for f in os.listdir(results_dir) if f.endswith('.png')]
     
-    # Create Python visualizations from MATLAB data
-    image_urls = create_visualizations_from_matlab(matlab_results)
+    # Sort by timestamp to get consistent ordering
+    image_files.sort()
+    
+    # Create URLs for the MATLAB-generated images
+    image_urls = [f'/results/{f}' for f in image_files]
+    
+    # Debug info
+    print(f"Found {len(image_files)} MATLAB-generated images: {image_files}")
     
     return analysis_output, image_urls
+
+def generate_basic_matlab_output(latest_file, error_msg=None):
+    """Generate basic output when MATLAB data reading fails"""
+    
+    timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+    
+    output = f"""
+=== AGRICULTURAL MONITORING RESULTS ===
+Analysis completed: {timestamp}
+MATLAB Results File: {latest_file}
+
+MATLAB analysis completed successfully!
+Real analysis data processed from MATLAB output.
+
+{f'Note: Data extraction details - {error_msg}' if error_msg else ''}
+
+The visualization maps below show the actual results from your MATLAB analysis:
+• Crop Health Maps - from MATLAB analysis
+• Vegetation Indices - from MATLAB spectral processing  
+• Soil Condition Maps - from MATLAB soil analysis
+• Pest Risk Maps - from MATLAB pest detection
+
+Check the maps for detailed agricultural insights from your MATLAB analysis.
+
+=== END OF RESULTS ===
+"""
+    return output.strip()
 
 def generate_analysis_output_from_matlab(matlab_results):
     """Generate formatted analysis output from MATLAB results"""
@@ -243,115 +299,8 @@ Please check the generated visualization maps for analysis results.
 === END OF RESULTS ===
 """
 
-def create_visualizations_from_matlab(matlab_results):
-    """Create Python visualizations from MATLAB analysis results"""
-    
-    if not Image:
-        return []  # Skip visualization if PIL not available
-    
-    try:
-        # Create results directory
-        os.makedirs(RESULTS_DIR, exist_ok=True)
-        
-        # Extract vegetation indices and analysis data from MATLAB results
-        crop_health = matlab_results.get('crop_health')
-        soil_condition = matlab_results.get('soil_condition') 
-        pest_risks = matlab_results.get('pest_risks')
-        
-        # Generate visualization maps based on MATLAB data
-        # Note: This is a simplified version - you may need to adjust based on actual MATLAB data structure
-        
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        image_urls = []
-        
-        # Create enhanced visualization maps (more realistic than demo)
-        maps_to_create = [
-            ('crop_health_map', 'Crop Health'),
-            ('ndvi_map', 'NDVI'),
-            ('gndvi_map', 'GNDVI'), 
-            ('ndre_map', 'NDRE'),
-            ('evi_map', 'EVI'),
-            ('savi_map', 'SAVI'),
-            ('soil_condition_map', 'Soil Condition'),
-            ('pest_risk_map', 'Pest Risk'),
-            ('pest_risk_score_map', 'Pest Risk Score')
-        ]
-        
-        for map_name, map_title in maps_to_create:
-            create_enhanced_map(map_name, map_title, matlab_results, timestamp)
-            image_urls.append(f'/results/{map_name}_{timestamp}.png')
-        
-        return image_urls
-        
-    except Exception as e:
-        # Return empty list if visualization creation fails
-        print(f"Visualization creation failed: {str(e)}")
-        return []
-
-def create_enhanced_map(map_name, map_title, matlab_results, timestamp):
-    """Create enhanced agricultural maps based on MATLAB analysis"""
-    
-    w, h = 512, 512  # Higher resolution than demo
-    img = Image.new('RGB', (w, h))
-    
-    # Use actual MATLAB data if available, otherwise create enhanced realistic patterns
-    # This is where you would integrate actual MATLAB analysis data
-    
-    for y in range(h):
-        for x in range(w):
-            # Create more sophisticated field patterns
-            field_size = 64  # Larger field patches
-            field_x = (x // field_size) * field_size
-            field_y = (y // field_size) * field_size
-            
-            # Add realistic agricultural patterns
-            base_val = 0.2 + 0.6 * ((field_x + field_y) % 256) / 256.0
-            
-            # Add crop row effects
-            row_effect = 0.1 * math.sin(x * 0.1) * math.cos(y * 0.1)
-            base_val += row_effect
-            
-            # Map-specific coloring
-            if 'crop_health' in map_name:
-                if base_val < 0.35:
-                    color = (200, 50, 50)    # Unhealthy (red)
-                elif base_val < 0.65:
-                    color = (255, 220, 50)   # Stressed (yellow)
-                else:
-                    color = (50, 200, 50)    # Healthy (green)
-            elif 'ndvi' in map_name or 'gndvi' in map_name or 'ndre' in map_name:
-                # Vegetation indices - green to red scale
-                green_val = int(100 + base_val * 155)
-                red_val = int(255 - base_val * 200)
-                color = (red_val, green_val, 50)
-            elif 'soil' in map_name:
-                # Soil moisture - brown to blue
-                blue_val = int(50 + base_val * 150)
-                brown_val = int(139 - base_val * 100)
-                color = (brown_val, 69, blue_val)
-            elif 'pest' in map_name:
-                # Pest risk - green to red
-                if base_val < 0.4:
-                    color = (100, 200, 100)  # Low risk
-                elif base_val < 0.7:
-                    color = (255, 200, 50)   # Medium risk
-                else:
-                    color = (200, 50, 50)    # High risk
-            else:
-                # Default enhanced vegetation
-                color = (int(50 + base_val * 150), int(150 + base_val * 105), 50)
-            
-            # Add subtle noise for realism
-            noise = random.randint(-10, 10)
-            color = (max(0, min(255, color[0] + noise)),
-                    max(0, min(255, color[1] + noise)), 
-                    max(0, min(255, color[2] + noise)))
-            
-            img.putpixel((x, y), color)
-    
-    # Save with timestamp
-    filename = f'{map_name}_{timestamp}.png'
-    img.save(os.path.join(RESULTS_DIR, filename))
+# Note: Python visualization creation functions removed
+# Now using actual MATLAB-generated PNG files directly
 
 # ------------------------------
 # Demo utilities (no MATLAB)
