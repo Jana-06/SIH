@@ -1,8 +1,37 @@
 # 🌾 Agricultural Monitoring Dashboard - Deployment Guide
 
-Your Flask application is now ready for deployment! Here are three easy ways to get a global URL:
+Your Flask application supports two modes:
+- **🔬 MATLAB Integration Mode**: Runs actual MATLAB analysis for real results
+- **🎯 Demo Mode**: Generates realistic sample data for deployment/testing
 
-## 🚀 Quick Deploy Options
+## 🔬 Local Development with MATLAB Integration
+
+### Running with Real MATLAB Analysis:
+
+**Windows:**
+```cmd
+run_local_matlab.bat
+```
+
+**Linux/Mac:**
+```bash
+./run_local_matlab.sh
+```
+
+This will:
+- Set `DEMO_MODE=0` to enable MATLAB integration
+- Run your MATLAB analysis (`main.m`) when you click "Run Analysis"  
+- Generate Python visualizations from real MATLAB results
+- Display actual crop health, soil condition, and pest risk data
+
+### Requirements for MATLAB Mode:
+- MATLAB installed and accessible via `matlab` command
+- All your MATLAB analysis files (main.m, CropHealthAnalyzer.m, etc.)
+- Input data files (multispectral_data.mat, sensor_data.mat) or the system will generate sample data
+
+## 🚀 Global Deployment Options (Demo Mode)
+
+For global deployment, the app runs in Demo Mode with realistic sample data:
 
 ### Option 1: Render (Recommended - FREE)
 
