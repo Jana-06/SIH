@@ -1,4 +1,4 @@
-x# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1
 
 # Base image with Python and optional MATLAB Runtime (if available)
 # For demo we start with python-slim; in production use a MATLAB Runtime image if you have compiled code.
