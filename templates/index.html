@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agricultural Monitoring Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1><i class="fa-solid fa-leaf"></i> Agricultural Monitoring Dashboard</h1>
+        </div>
+    </header>
+
+    <main class="container">
+    <div class="instructions-panel">
+        <h2>Instructions</h2>
+        <p class="hint" style="margin:0 0 10px 0;">This is the Research/Analyst view intended for agronomists and researchers. For a simplified farmer view, open the <a href="/farmer" style="text-decoration:underline;">Farmer Dashboard</a>.</p>
+        <p>1. Click <strong>Run Analysis</strong> to process the dataset.</p>
+        <p>2. The system will analyze crop health, soil conditions, and pest risks.</p>
+        <p>3. Results and visualizations will be displayed below.</p>
+        <p>4. Use the chatbot in the bottom right for any questions about the analysis.</p>
+
+        <details class="understanding-panel" style="margin-top:12px;">
+            <summary><strong>Understanding the Maps</strong> (click to expand)</summary>
+            <ul style="margin-top:10px; line-height:1.5;">
+                <li><strong>Crop Health Map</strong>: Traffic-light view of plant condition. Green = Healthy, Yellow = Stressed, Red = Unhealthy. Start here to spot problem patches.</li>
+                <li><strong>NDVI Map</strong>: Vegetation vigor from Red & NIR bands. Higher values mean more green biomass. Use to confirm overall crop activity.</li>
+                <li><strong>GNDVI Map</strong>: Uses Green & NIR; more sensitive to chlorophyll. Helpful for early nutrient/chlorophyll issues.</li>
+                <li><strong>NDRE Map</strong>: Uses Red-Edge & NIR; detects subtle canopy stress early. Falling NDRE can precede NDVI drops.</li>
+                <li><strong>EVI Map</strong>: Robust in dense canopies; reduces soil/atmospheric effects. Prefer over NDVI in lush fields.</li>
+                <li><strong>SAVI Map</strong>: Compensates for soil brightness; useful when canopy cover is sparse.</li>
+                <li><strong>Soil Condition Map</strong>: Spatial soil moisture/quality. Correlate dry zones with stress on the Crop Health Map.</li>
+            </ul>
+            <p style="margin-top:8px;">Quick workflow: Check <em>Crop Health</em> → verify with <em>NDVI/NDRE/GNDVI</em> → cross-check <em>Soil</em> → plan interventions in red/yellow areas first.</p>
+        </details>
+    </div>
+
+    <div class="run-container">
+        <button id="run-button" class="run-button">Run Analysis</button>
+        <div id="loader" class="loader" style="display: none;"></div>
+    </div>        <div class="card">
+            <h2 class="card-header">Visualizations</h2>
+            <div id="image-dashboard">
+                <!-- Images will be loaded here -->
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-header">Analysis Summary</h2>
+            <div id="output-summary">
+                <p>Click "Run Analysis" to view the summary.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Chatbot -->
+    <div class="chatbot-fab" id="chatbot-fab">
+        <i class="fa-solid fa-robot"></i>
+    </div>
+    <div class="chatbot-container" id="chatbot-container">
+        <div class="chatbot-header">
+            <h2>Farm Assistant</h2>
+            <div class="chatbot-actions">
+                <button id="toggle-tts" class="chatbot-icon-btn" title="Toggle voice"><i class="fa-solid fa-volume-high"></i></button>
+                <button id="close-chatbot" class="close-chatbot-btn" title="Close"><i class="fa-solid fa-times"></i></button>
+            </div>
+        </div>
+        <div id="chatbot-messages" class="chatbot-messages">
+            <div class="message bot-message">Hello! I'm your farm assistant. Ask me about the analysis results.</div>
+        </div>
+        <div class="chatbot-input">
+            <input type="text" id="user-input" placeholder="Ask a question...">
+            <button id="send-button"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
